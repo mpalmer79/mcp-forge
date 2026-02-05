@@ -114,7 +114,7 @@ export default function LandingPage() {
           </div>
           <div className="flex items-center gap-6">
             <a
-              href="https://github.com/YOUR_USERNAME/mcp-forge"
+              href=https://github.com/mpalmer79/mcp-forge
               className="text-xs text-slate-500 hover:text-slate-300 font-mono transition-colors"
               target="_blank"
               rel="noopener noreferrer"

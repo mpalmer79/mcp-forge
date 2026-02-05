@@ -3,9 +3,11 @@ import { render, screen } from '@testing-library/react';
 import CTA from '@/components/landing/CTA';
 
 jest.mock('next/link', () => {
-  return ({ children, href, ...rest }: any) => (
+  const MockLink = ({ children, href, ...rest }: any) => (
     <a href={href} {...rest}>{children}</a>
   );
+  MockLink.displayName = 'MockLink';
+  return MockLink;
 });
 
 describe('CTA component', () => {
@@ -13,12 +15,10 @@ describe('CTA component', () => {
     render(<CTA />);
     expect(screen.getByText('Ready to build?')).toBeInTheDocument();
   });
-
   test('renders the description', () => {
     render(<CTA />);
     expect(screen.getByText(/Open the builder and create your first MCP server/)).toBeInTheDocument();
   });
-
   test('renders launch button linking to /builder', () => {
     render(<CTA />);
     const link = screen.getByText(/Launch MCP Forge/);

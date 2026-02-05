@@ -88,7 +88,7 @@ const FEATURES = [
 ];
 
 const STATS = [
-  { value: "3", label: "MCP Primitives", sub: "Tools · Resources · Prompts" },
+  { value: "3", label: "MCP Primitives", sub: "Tools \u00B7 Resources \u00B7 Prompts" },
   { value: "2025-11-25", label: "Spec Version", sub: "Latest MCP specification" },
   { value: "0", label: "Boilerplate", sub: "Lines you write manually" },
 ];
@@ -114,7 +114,7 @@ export default function LandingPage() {
           </div>
           <div className="flex items-center gap-6">
             <a
-              href=https://github.com/mpalmer79/mcp-forge
+              href="https://github.com/mpalmer79/mcp-forge"
               className="text-xs text-slate-500 hover:text-slate-300 font-mono transition-colors"
               target="_blank"
               rel="noopener noreferrer"
@@ -174,7 +174,7 @@ export default function LandingPage() {
                 Start Building →
               </Link>
               <a
-                href="https://github.com/YOUR_USERNAME/mcp-forge"
+                href="https://github.com/mpalmer79/mcp-forge"
                 className="px-6 py-3 bg-white/[0.03] border border-white/[0.08] hover:border-white/[0.15] text-slate-300 font-mono text-sm rounded-lg transition-all"
                 target="_blank"
                 rel="noopener noreferrer"
@@ -274,10 +274,10 @@ export default function LandingPage() {
           </p>
           <div className="flex justify-center gap-6 text-[10px] font-mono text-slate-600">
             <span>JSON-RPC 2.0</span>
-            <span>·</span>
+            <span>{"\u00B7"}</span>
             <span>stdio / HTTP / SSE</span>
-            <span>·</span>
-            <span>Tools · Resources · Prompts</span>
+            <span>{"\u00B7"}</span>
+            <span>Tools {"\u00B7"} Resources {"\u00B7"} Prompts</span>
           </div>
         </div>
       </section>

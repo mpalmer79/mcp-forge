@@ -253,7 +253,7 @@ Built with [MCP Forge](https://github.com/mpalmer79/mcp-forge)
   }
 
   const zipData = buildZip(entries);
-  return new Blob([zipData], { type: "application/zip" });
+  return new Blob([zipData.buffer as ArrayBuffer], { type: "application/zip" });
 }
 
 export function downloadProjectZip(server: MCPServer, language: "typescript" | "python" = "typescript"): void {

@@ -40,17 +40,17 @@ function GridBackground() {
             Math.pow(py - canvas.height * 0.4, 2)
           );
           const wave = Math.sin(dist * 0.005 - time * 2) * 0.5 + 0.5;
-          const alpha = wave * 0.12 + 0.02;
+          const alpha = wave * 0.18 + 0.04;
 
           const isHighlight =
-            dist < 300 &&
-            Math.sin(time * 3 + x * 0.5) > 0.7 &&
-            Math.sin(time * 2 + y * 0.3) > 0.7;
+            dist < 350 &&
+            Math.sin(time * 3 + x * 0.5) > 0.65 &&
+            Math.sin(time * 2 + y * 0.3) > 0.65;
 
           if (isHighlight) {
-            ctx.fillStyle = `rgba(34, 197, 94, ${alpha * 3})`;
+            ctx.fillStyle = `rgba(34, 197, 94, ${alpha * 3.5})`;
             ctx.beginPath();
-            ctx.arc(px, py, 2.5, 0, Math.PI * 2);
+            ctx.arc(px, py, 3, 0, Math.PI * 2);
             ctx.fill();
           } else {
             ctx.fillStyle = `rgba(148, 163, 184, ${alpha})`;
@@ -305,9 +305,10 @@ export default function LandingPage() {
       <section className="relative z-10 px-4 sm:px-6 pt-16 sm:pt-24 pb-16 sm:pb-20 overflow-hidden">
         <GridBackground />
 
-        {/* Ambient orbs */}
-        <div className="absolute top-20 left-[10%] w-[500px] h-[500px] rounded-full bg-forge-500/[0.04] blur-[120px] pointer-events-none" />
-        <div className="absolute top-40 right-[5%] w-[400px] h-[400px] rounded-full bg-blue-500/[0.04] blur-[100px] pointer-events-none" />
+        {/* Ambient orbs - vivid */}
+        <div className="absolute top-10 left-[5%] w-[600px] h-[600px] rounded-full bg-forge-500/[0.1] blur-[150px] pointer-events-none animate-pulse" />
+        <div className="absolute top-32 right-[0%] w-[500px] h-[500px] rounded-full bg-blue-500/[0.08] blur-[120px] pointer-events-none" />
+        <div className="absolute -bottom-20 left-[30%] w-[400px] h-[400px] rounded-full bg-purple-500/[0.06] blur-[100px] pointer-events-none" />
 
         <div className="relative max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
           <div
@@ -368,7 +369,10 @@ export default function LandingPage() {
       </section>
 
       {/* ── Stats ───────────────────── */}
-      <section className="relative z-10 px-4 sm:px-6 py-12 sm:py-14 border-y border-white/[0.06]">
+      <div className="section-divider" />
+      <section className="relative z-10 px-4 sm:px-6 py-12 sm:py-14">
+        {/* Background accent */}
+        <div className="absolute inset-0 bg-gradient-to-b from-forge-500/[0.02] via-transparent to-transparent pointer-events-none" />
         <div className="max-w-4xl mx-auto grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6">
           {STATS.map((stat) => (
             <div key={stat.label} className="stat-card text-center">
@@ -390,9 +394,17 @@ export default function LandingPage() {
       </section>
 
       {/* ── Features ──────────────────── */}
+      <div className="section-divider" />
       <section className="relative z-10 px-4 sm:px-6 py-16 sm:py-24">
-        <div className="max-w-6xl mx-auto">
+        {/* Section background glow */}
+        <div className="absolute top-0 left-[20%] w-[600px] h-[400px] rounded-full bg-forge-500/[0.06] blur-[150px] pointer-events-none" />
+        <div className="absolute bottom-0 right-[10%] w-[500px] h-[300px] rounded-full bg-blue-500/[0.05] blur-[120px] pointer-events-none" />
+
+        <div className="max-w-6xl mx-auto relative">
           <div className="text-center mb-12 sm:mb-16">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-forge-500/10 border border-forge-500/25 rounded-full mb-4">
+              <span className="text-[10px] font-mono text-forge-400 font-semibold tracking-wider uppercase">Features</span>
+            </div>
             <h2 className="text-2xl sm:text-3xl font-bold mb-4">
               Everything you need to ship MCP servers
             </h2>
@@ -403,47 +415,61 @@ export default function LandingPage() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
-            {FEATURES.map((f) => (
+            {FEATURES.map((f, idx) => (
               <div
                 key={f.title}
-                className="group relative p-6 sm:p-7 rounded-2xl border border-white/[0.06] overflow-hidden hover:border-white/[0.15] transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-black/20"
+                className="group relative p-6 sm:p-7 rounded-2xl overflow-hidden transition-all duration-500 hover:-translate-y-1.5 hover:shadow-2xl"
+                style={{
+                  border: `1px solid ${f.color}25`,
+                  animationDelay: `${idx * 100}ms`,
+                }}
               >
-                {/* Background Image */}
+                {/* Background Image - BRIGHTER */}
                 <div
-                  className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"
+                  className="absolute inset-0 bg-cover bg-center transition-all duration-700 group-hover:scale-110 group-hover:brightness-110"
                   style={{ backgroundImage: `url(${f.img})` }}
                 />
-                {/* Dark overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-[#0a0e1a] via-[#0a0e1a]/85 to-[#0a0e1a]/70 group-hover:via-[#0a0e1a]/80 group-hover:to-[#0a0e1a]/60 transition-all duration-300" />
-                {/* Color accent glow on hover */}
+                {/* Lighter overlay - shows more image */}
                 <div
-                  className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                  className="absolute inset-0 transition-all duration-500"
                   style={{
-                    background: `radial-gradient(400px circle at 50% 0%, ${f.color}15, transparent)`,
+                    background: `linear-gradient(160deg, ${f.color}12 0%, rgba(8,12,24,0.65) 30%, rgba(8,12,24,0.55) 70%, ${f.color}08 100%)`,
                   }}
                 />
+                {/* Bottom gradient for text readability */}
+                <div className="absolute inset-0 bg-gradient-to-t from-[#080c18]/90 via-[#080c18]/40 to-transparent" />
+                {/* Color accent glow on hover */}
+                <div
+                  className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+                  style={{
+                    background: `radial-gradient(500px circle at 50% 0%, ${f.color}20, transparent)`,
+                  }}
+                />
+                {/* Top accent line */}
+                <div className="absolute top-0 left-0 right-0 h-[2px] opacity-60 group-hover:opacity-100 transition-opacity" style={{ background: `linear-gradient(90deg, transparent, ${f.color}, transparent)` }} />
 
                 <div className="relative z-10">
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-3">
-                      <span className="text-2xl drop-shadow-lg">{f.icon}</span>
+                      <span className="text-2xl drop-shadow-lg filter brightness-125">{f.icon}</span>
                       <h3
                         className="font-semibold text-[15px] font-mono drop-shadow-md"
-                        style={{ color: f.color }}
+                        style={{ color: f.color, textShadow: `0 0 20px ${f.color}40` }}
                       >
                         {f.title}
                       </h3>
                     </div>
                   </div>
-                  <p className="text-[13px] text-slate-300 leading-relaxed font-mono mb-4 drop-shadow-sm">
+                  <p className="text-[13px] text-slate-200 leading-relaxed font-mono mb-4" style={{ textShadow: "0 2px 8px rgba(0,0,0,0.6)" }}>
                     {f.desc}
                   </p>
                   <div
-                    className="inline-flex items-center gap-1.5 text-[10px] font-mono font-semibold px-2.5 py-1 rounded-md backdrop-blur-sm"
+                    className="inline-flex items-center gap-1.5 text-[10px] font-mono font-semibold px-2.5 py-1 rounded-md backdrop-blur-md"
                     style={{
                       color: f.color,
-                      background: `${f.color}18`,
-                      border: `1px solid ${f.color}30`,
+                      background: `${f.color}20`,
+                      border: `1px solid ${f.color}40`,
+                      boxShadow: `0 0 12px ${f.color}15`,
                     }}
                   >
                     {f.stat}
@@ -456,7 +482,8 @@ export default function LandingPage() {
       </section>
 
       {/* ── How It Works ──────────────── */}
-      <section className="relative z-10 px-4 sm:px-6 py-16 sm:py-20 border-t border-white/[0.06]">
+      <div className="section-divider" />
+      <section className="relative z-10 px-4 sm:px-6 py-16 sm:py-20">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-12">
             <h2 className="text-2xl sm:text-3xl font-bold mb-4">
@@ -485,10 +512,10 @@ export default function LandingPage() {
                 color: "#a78bfa",
               },
             ].map((s) => (
-              <div key={s.step} className="text-center">
+              <div key={s.step} className="text-center group">
                 <div
-                  className="text-4xl sm:text-5xl font-bold font-mono mb-3 opacity-20"
-                  style={{ color: s.color }}
+                  className="text-4xl sm:text-5xl font-bold font-mono mb-3 transition-all duration-300 group-hover:opacity-60"
+                  style={{ color: s.color, opacity: 0.35, textShadow: `0 0 30px ${s.color}30` }}
                 >
                   {s.step}
                 </div>
@@ -505,7 +532,8 @@ export default function LandingPage() {
       </section>
 
       {/* ── MCP Explanation ────────────── */}
-      <section className="relative z-10 px-4 sm:px-6 py-16 sm:py-20 border-t border-white/[0.06]">
+      <div className="section-divider" />
+      <section className="relative z-10 px-4 sm:px-6 py-16 sm:py-20">
         <div className="max-w-3xl mx-auto text-center">
           <div className="text-xs font-mono text-slate-500 mb-4 tracking-widest uppercase">
             What is MCP?
@@ -527,8 +555,10 @@ export default function LandingPage() {
       </section>
 
       {/* ── CTA ───────────────────────── */}
-      <section className="relative z-10 px-4 sm:px-6 py-16 sm:py-24 border-t border-white/[0.06]">
-        <div className="absolute bottom-0 left-[30%] w-[500px] h-[300px] rounded-full bg-forge-500/[0.05] blur-[100px] pointer-events-none" />
+      <div className="section-divider" />
+      <section className="relative z-10 px-4 sm:px-6 py-16 sm:py-24">
+        <div className="absolute bottom-0 left-[20%] w-[600px] h-[400px] rounded-full bg-forge-500/[0.1] blur-[120px] pointer-events-none" />
+        <div className="absolute top-10 right-[20%] w-[400px] h-[300px] rounded-full bg-blue-500/[0.06] blur-[100px] pointer-events-none" />
         <div className="relative max-w-2xl mx-auto text-center">
           <h2 className="text-2xl sm:text-3xl font-bold mb-4">Ready to build?</h2>
           <p className="text-slate-400 font-mono text-sm mb-8">
@@ -553,7 +583,8 @@ export default function LandingPage() {
       </section>
 
       {/* ── Footer ────────────────────── */}
-      <footer className="relative z-10 px-4 sm:px-6 py-8 border-t border-white/[0.06]">
+      <div className="section-divider" />
+      <footer className="relative z-10 px-4 sm:px-6 py-8">
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-[10px] font-mono text-slate-500">
           <div className="flex items-center gap-2">
             <span className="text-forge-400">⚡</span>

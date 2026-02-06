@@ -12,6 +12,12 @@ import {
   generateServerCode, generateConfig, generatePackageJson,
   generateTsConfig, exportServerAsJson, importServerFromJson,
 } from "@/lib/codegen";
+import {
+  loadProjects, saveProject, deleteProject, loadCurrentProjectId,
+  saveCurrentProjectId, autoSave, formatTimeAgo,
+  type SavedProject,
+} from "@/lib/storage";
+import { downloadProjectZip } from "@/lib/zipgen";
 
 /* ── Shared UI ───────────────────────── */
 function Badge({ children, color = "#22c55e" }: { children: React.ReactNode; color?: string }) {
@@ -223,11 +229,13 @@ function CodePreview({ server, language, addToast }: { server: MCPServer; langua
 }
 
 /* ── Builder Tab ─────────────────────── */
-function BuilderTab({ server, setServer, language, addToast }: {
-  server: MCPServer; setServer: React.Dispatch<React.SetStateAction<MCPServer>>; language: "typescript" | "python"; addToast: (m: string, t?: Toast["type"]) => void;
+function BuilderTab({ server, setServer, language, addToast, onShowCode }: {
+  server: MCPServer; setServer: React.Dispatch<React.SetStateAction<MCPServer>>; language: "typescript" | "python";
+  addToast: (m: string, t?: Toast["type"]) => void; onShowCode: () => void;
 }) {
   const [selectedPrimitive, setSelectedPrimitive] = useState<string | null>(null);
   const [editingTool, setEditingTool] = useState<MCPPrimitive | null>(null);
+  const [sidebarSearch, setSidebarSearch] = useState("");
   const addPrimitive = useCallback((type: PrimitiveType) => {
     const id = `${type}_${Date.now()}`;
     const base: MCPPrimitive = { id, type, name: "", description: "" };
@@ -272,6 +280,12 @@ function BuilderTab({ server, setServer, language, addToast }: {
     updatePrimitive(tid, { parameters: (editingTool?.parameters || []).filter((_, i) => i !== idx) });
   }, [editingTool, updatePrimitive]);
 
+  const filteredPrimitives = useMemo(() => {
+    if (!sidebarSearch) return server.primitives;
+    const q = sidebarSearch.toLowerCase();
+    return server.primitives.filter((p) => p.name.toLowerCase().includes(q) || p.type.includes(q) || p.description.toLowerCase().includes(q));
+  }, [server.primitives, sidebarSearch]);
+
   return (
     <div className="flex h-full">
       {/* Left: config + primitives */}
@@ -284,6 +298,12 @@ function BuilderTab({ server, setServer, language, addToast }: {
             <SelectInput value={server.transport} onChange={(v) => setServer((s) => ({ ...s, transport: v as MCPServer["transport"] }))} options={TRANSPORTS} /></div>
         </div>
         <SectionLabel>Primitives ({server.primitives.length})</SectionLabel>
+        {server.primitives.length > 3 && (
+          <div className="mb-2">
+            <input value={sidebarSearch} onChange={(e) => setSidebarSearch(e.target.value)} placeholder="Search primitives..."
+              className="w-full px-2.5 py-1.5 bg-[#0c1222] border border-white/[0.06] rounded-md text-slate-400 text-[11px] font-mono outline-none focus:border-forge-500/30 transition-colors" />
+          </div>
+        )}
         <div className="flex gap-1.5 mb-3">
           {(Object.entries(PRIMITIVE_TYPES) as [PrimitiveType, typeof PRIMITIVE_TYPES[string]][]).map(([type, info]) => (
             <button key={type} onClick={() => addPrimitive(type)} className="flex-1 py-1.5 px-1 rounded-md text-[10px] font-mono font-semibold transition-all hover:opacity-80"
@@ -293,7 +313,7 @@ function BuilderTab({ server, setServer, language, addToast }: {
           ))}
         </div>
         <div className="flex flex-col gap-1">
-          {server.primitives.map((p) => {
+          {filteredPrimitives.map((p) => {
             const info = PRIMITIVE_TYPES[p.type]; const isSel = selectedPrimitive === p.id;
             return (
               <div key={p.id} className="rounded-md cursor-pointer transition-all flex items-center gap-2 px-2.5 py-2 group"
@@ -314,9 +334,19 @@ function BuilderTab({ server, setServer, language, addToast }: {
             );
           })}
           {server.primitives.length === 0 && <div className="p-5 text-center text-slate-600 text-[11px] font-mono">Add tools, resources, or prompts<br />using the buttons above</div>}
+          {sidebarSearch && filteredPrimitives.length === 0 && server.primitives.length > 0 && (
+            <div className="p-4 text-center text-slate-600 text-[11px] font-mono">No matches for &quot;{sidebarSearch}&quot;</div>
+          )}
         </div>
       </div>
       {/* Center: editor */}
+      <div className="flex-1 p-4 md:p-5 overflow-y-auto min-w-0">
+        {/* Mobile code button */}
+        <div className="lg:hidden mb-3">
+          <button onClick={onShowCode} className="w-full py-2 bg-forge-500/[0.08] border border-forge-500/20 rounded-md text-forge-400 text-[11px] font-mono font-semibold">
+            &lt;/&gt; View Generated Code
+          </button>
+        </div>
       <div className="flex-1 p-4 md:p-5 overflow-y-auto min-w-0">
         {editingTool ? (
           <PrimitiveEditor primitive={editingTool} onUpdate={(u) => updatePrimitive(editingTool.id, u)}
@@ -478,13 +508,31 @@ function PlaygroundTab({ server, addToast }: { server: MCPServer; addToast: (m: 
 }
 
 /* ── Config Tab ──────────────────────── */
-function ConfigTab({ server, addToast }: { server: MCPServer; addToast: (m: string, t?: Toast["type"]) => void }) {
+function ConfigTab({ server, language, addToast }: { server: MCPServer; language: "typescript" | "python"; addToast: (m: string, t?: Toast["type"]) => void }) {
   const config = useMemo(() => JSON.stringify(generateConfig(server), null, 2), [server]);
   const pkg = useMemo(() => JSON.stringify(generatePackageJson(server), null, 2), [server]);
   const tsConf = useMemo(() => JSON.stringify(generateTsConfig(), null, 2), []);
   const exportJson = useMemo(() => exportServerAsJson(server), [server]);
   return (
     <div className="p-5 overflow-y-auto h-full max-w-3xl mx-auto">
+      {/* Download ZIP */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-6 p-4 bg-gradient-to-r from-forge-500/[0.06] to-transparent rounded-xl border border-forge-500/15">
+        <div className="flex-1">
+          <div className="text-sm font-bold text-slate-200 font-mono mb-1">📦 Download Project</div>
+          <p className="text-[10px] text-slate-500 font-mono">Get a complete, ready-to-run project with src, configs, README, and .gitignore</p>
+        </div>
+        <div className="flex gap-2">
+          <button onClick={() => { downloadProjectZip(server, "typescript"); addToast("Downloaded TypeScript project"); }}
+            className="px-3 py-1.5 bg-forge-500/[0.12] border border-forge-500/25 rounded-md text-forge-400 text-[10px] font-mono font-semibold hover:bg-forge-500/20 transition-all">
+            ↓ TypeScript .zip
+          </button>
+          <button onClick={() => { downloadProjectZip(server, "python"); addToast("Downloaded Python project"); }}
+            className="px-3 py-1.5 bg-amber-500/[0.08] border border-amber-500/20 rounded-md text-amber-400 text-[10px] font-mono font-semibold hover:bg-amber-500/15 transition-all">
+            ↓ Python .zip
+          </button>
+        </div>
+      </div>
+
       {/* Export/Import */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-6 p-4 bg-[#0c1222] rounded-xl border border-white/[0.06]">
         <div className="flex-1">
@@ -535,7 +583,37 @@ function BuilderPageInner() {
   const [server, setServer] = useState<MCPServer>({ name: "my-server", description: "", transport: "stdio", primitives: [], version: "1.0.0" });
   const [language, setLanguage] = useState<"typescript" | "python">("typescript");
   const [templateModalOpen, setTemplateModalOpen] = useState(showTemplates);
+  const [projectsModalOpen, setProjectsModalOpen] = useState(false);
+  const [mobileCodeOpen, setMobileCodeOpen] = useState(false);
+  const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
   const { toasts, addToast, removeToast } = useToasts();
+  const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Load saved project on mount
+  useEffect(() => {
+    const savedId = loadCurrentProjectId();
+    if (savedId) {
+      const projects = loadProjects();
+      const found = projects.find((p) => p.id === savedId);
+      if (found) { setServer(found.server); setCurrentProjectId(found.id); }
+    }
+  }, []);
+
+  // Auto-save (2s debounce)
+  useEffect(() => {
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    autoSaveTimer.current = setTimeout(() => {
+      const id = autoSave(server, currentProjectId);
+      if (id && !currentProjectId) setCurrentProjectId(id);
+    }, 2000);
+    return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current); };
+  }, [server, currentProjectId]);
+
+  const handleSave = useCallback(() => {
+    const saved = saveProject(server, currentProjectId || undefined);
+    setCurrentProjectId(saved.id); saveCurrentProjectId(saved.id);
+    addToast(`Saved "${saved.name}"`);
+  }, [server, currentProjectId, addToast]);
 
   const handleImport = useCallback(() => {
     const input = document.createElement("input"); input.type = "file"; input.accept = ".json";
@@ -544,7 +622,7 @@ function BuilderPageInner() {
       const reader = new FileReader();
       reader.onload = (ev) => {
         const result = importServerFromJson(ev.target?.result as string);
-        if (result) { setServer(result); addToast(`Imported "${result.name}"`); } else { addToast("Invalid config file", "error"); }
+        if (result) { setServer(result); setCurrentProjectId(null); saveCurrentProjectId(null); addToast(`Imported "${result.name}"`); } else { addToast("Invalid config file", "error"); }
       };
       reader.readAsText(file);
     };
@@ -553,16 +631,35 @@ function BuilderPageInner() {
 
   const handleTemplateSelect = useCallback((ts: MCPServer) => {
     setServer({ ...ts, primitives: ts.primitives.map((p) => ({ ...p, id: `${p.type}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}` })) });
+    setCurrentProjectId(null); saveCurrentProjectId(null);
     addToast(`Loaded: ${ts.name}`);
+  }, [addToast]);
+
+  const handleLoadProject = useCallback((p: SavedProject) => {
+    setServer(p.server); setCurrentProjectId(p.id); saveCurrentProjectId(p.id);
+    addToast(`Loaded "${p.name}"`);
+  }, [addToast]);
+
+  const handleDeleteProject = useCallback((id: string) => {
+    deleteProject(id);
+    if (currentProjectId === id) { setCurrentProjectId(null); saveCurrentProjectId(null); }
+    addToast("Project deleted", "info");
+  }, [currentProjectId, addToast]);
+
+  const handleNewProject = useCallback(() => {
+    setServer({ name: "my-server", description: "", transport: "stdio", primitives: [], version: "1.0.0" });
+    setCurrentProjectId(null); saveCurrentProjectId(null);
+    addToast("New project started", "info");
   }, [addToast]);
 
   // Keyboard shortcuts
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key >= "1" && e.key <= "4") { e.preventDefault(); setActiveTab(TABS[parseInt(e.key) - 1]); }
+      if ((e.metaKey || e.ctrlKey) && e.key === "s") { e.preventDefault(); handleSave(); }
     };
     window.addEventListener("keydown", h); return () => window.removeEventListener("keydown", h);
-  }, []);
+  }, [handleSave]);
 
   return (
     <div className="h-screen w-screen flex flex-col bg-[#070b14] text-slate-200 font-mono overflow-hidden">
@@ -573,7 +670,7 @@ function BuilderPageInner() {
             <div className="w-7 h-7 rounded-md bg-gradient-to-br from-forge-400 to-forge-600 flex items-center justify-center text-xs font-bold shadow-lg shadow-forge-500/20">⚡</div>
             <div className="hidden sm:flex items-center gap-2">
               <span className="text-[15px] font-bold tracking-tight text-slate-200">MCP Forge</span>
-              <span className="text-[9px] text-slate-600">v2.0</span>
+              <span className="text-[9px] text-slate-600">v2.1</span>
             </div>
           </Link>
         </div>
@@ -591,8 +688,11 @@ function BuilderPageInner() {
         {/* Right actions */}
         <div className="flex gap-2 items-center">
           {activeTab === "Builder" && (<>
-            <button onClick={() => setTemplateModalOpen(true)} className="hidden sm:inline-flex px-2.5 py-1.5 bg-forge-500/[0.08] border border-forge-500/20 rounded-md text-forge-400 text-[10px] font-mono font-semibold hover:bg-forge-500/15 transition-all">🚀 Templates</button>
-            <button onClick={handleImport} className="hidden sm:inline-flex px-2.5 py-1.5 bg-white/[0.03] border border-white/[0.06] rounded-md text-slate-500 text-[10px] font-mono font-semibold hover:text-slate-300 transition-all">↑ Import</button>
+            <button onClick={handleNewProject} className="hidden sm:inline-flex px-2 py-1.5 bg-white/[0.03] border border-white/[0.06] rounded-md text-slate-500 text-[10px] font-mono font-semibold hover:text-slate-300 transition-all" title="New project">✦ New</button>
+            <button onClick={() => setProjectsModalOpen(true)} className="hidden sm:inline-flex px-2 py-1.5 bg-white/[0.03] border border-white/[0.06] rounded-md text-slate-500 text-[10px] font-mono font-semibold hover:text-slate-300 transition-all" title="Saved projects">💾 Projects</button>
+            <button onClick={handleSave} className="hidden sm:inline-flex px-2 py-1.5 bg-forge-500/[0.08] border border-forge-500/20 rounded-md text-forge-400 text-[10px] font-mono font-semibold hover:bg-forge-500/15 transition-all" title="Save (⌘S)">↓ Save</button>
+            <button onClick={() => setTemplateModalOpen(true)} className="hidden md:inline-flex px-2 py-1.5 bg-forge-500/[0.08] border border-forge-500/20 rounded-md text-forge-400 text-[10px] font-mono font-semibold hover:bg-forge-500/15 transition-all">🚀 Templates</button>
+            <button onClick={handleImport} className="hidden md:inline-flex px-2 py-1.5 bg-white/[0.03] border border-white/[0.06] rounded-md text-slate-500 text-[10px] font-mono font-semibold hover:text-slate-300 transition-all">↑ Import</button>
           </>)}
           {/* Language toggle */}
           <div className="flex rounded-md border border-white/[0.08] overflow-hidden">
@@ -611,20 +711,22 @@ function BuilderPageInner() {
 
       {/* Content */}
       <div className="flex-1 min-h-0 overflow-hidden">
-        {activeTab === "Builder" && <BuilderTab server={server} setServer={setServer} language={language} addToast={addToast} />}
+        {activeTab === "Builder" && <BuilderTab server={server} setServer={setServer} language={language} addToast={addToast} onShowCode={() => setMobileCodeOpen(true)} />}
         {activeTab === "Registry" && <RegistryTab />}
         {activeTab === "Playground" && <PlaygroundTab server={server} addToast={addToast} />}
-        {activeTab === "Config" && <ConfigTab server={server} addToast={addToast} />}
+        {activeTab === "Config" && <ConfigTab server={server} language={language} addToast={addToast} />}
       </div>
 
       {/* Status bar */}
       <div className="h-7 px-4 flex items-center justify-between border-t border-white/[0.04] text-[10px] text-slate-600 font-mono flex-shrink-0">
-        <div className="flex gap-3"><span>MCP 2025-11-25</span><span>·</span><span>JSON-RPC 2.0</span></div>
+        <div className="flex gap-3"><span>MCP 2025-11-25</span><span>·</span><span>JSON-RPC 2.0</span>{currentProjectId && <><span>·</span><span className="text-forge-500/60">💾 Auto-saved</span></>}</div>
         <div className="flex gap-3"><span>{server.name || "unnamed"}</span><span>·</span><span>{language === "typescript" ? "TypeScript" : "Python"}</span><span>·</span><span className="text-forge-500">● Ready</span></div>
       </div>
 
       {/* Modals & Toasts */}
       <TemplateModal isOpen={templateModalOpen} onClose={() => setTemplateModalOpen(false)} onSelect={handleTemplateSelect} />
+      <ProjectsModal isOpen={projectsModalOpen} onClose={() => setProjectsModalOpen(false)} onLoad={handleLoadProject} onDelete={handleDeleteProject} currentId={currentProjectId} />
+      <MobileCodeDrawer isOpen={mobileCodeOpen} onClose={() => setMobileCodeOpen(false)} server={server} language={language} addToast={addToast} />
       <ToastContainer toasts={toasts} onRemove={removeToast} />
     </div>
   );

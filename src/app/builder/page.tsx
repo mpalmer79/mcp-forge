@@ -148,6 +148,80 @@ function TemplateModal({ isOpen, onClose, onSelect }: {
   );
 }
 
+/* ── Projects Modal (LocalStorage) ───── */
+function ProjectsModal({ isOpen, onClose, onLoad, onDelete, currentId }: {
+  isOpen: boolean; onClose: () => void; onLoad: (p: SavedProject) => void; onDelete: (id: string) => void; currentId: string | null;
+}) {
+  const [projects, setProjects] = useState<SavedProject[]>([]);
+  useEffect(() => { if (isOpen) setProjects(loadProjects()); }, [isOpen]);
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
+      <div className="bg-[#0c1222] border border-white/[0.08] rounded-2xl p-6 w-full max-w-lg max-h-[80vh] overflow-auto shadow-2xl mx-4" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <h2 className="text-lg font-bold text-slate-200 font-mono">💾 Saved Projects</h2>
+            <p className="text-[11px] text-slate-500 font-mono mt-1">{projects.length} project{projects.length !== 1 ? "s" : ""} saved locally</p>
+          </div>
+          <button onClick={onClose} className="text-slate-500 hover:text-white text-lg p-1">✕</button>
+        </div>
+        {projects.length === 0 ? (
+          <div className="py-10 text-center text-slate-600 font-mono text-sm">
+            <div className="text-3xl mb-3 opacity-40">💾</div>
+            No saved projects yet.<br />Use the Save button to persist your work.
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {projects.map((p) => (
+              <div key={p.id} className="flex items-center gap-3 p-3 rounded-lg border transition-all group"
+                style={{ background: p.id === currentId ? "rgba(34,197,94,0.06)" : "#0a0f1a", borderColor: p.id === currentId ? "rgba(34,197,94,0.2)" : "rgba(255,255,255,0.04)" }}>
+                <div className="flex-1 min-w-0 cursor-pointer" onClick={() => { onLoad(p); onClose(); }}>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold text-slate-200 font-mono truncate">{p.name}</span>
+                    {p.id === currentId && <Badge color="#22c55e">Active</Badge>}
+                  </div>
+                  <div className="text-[10px] text-slate-600 font-mono mt-0.5">{p.primitiveCount} primitives · {formatTimeAgo(p.updatedAt)}</div>
+                </div>
+                <button onClick={(e) => { e.stopPropagation(); onDelete(p.id); setProjects((prev) => prev.filter((x) => x.id !== p.id)); }}
+                  className="text-slate-700 hover:text-red-400 text-sm p-1 opacity-0 group-hover:opacity-100 transition-opacity" title="Delete">×</button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ── Mobile Code Drawer ──────────────── */
+function MobileCodeDrawer({ isOpen, onClose, server, language, addToast }: {
+  isOpen: boolean; onClose: () => void; server: MCPServer; language: "typescript" | "python"; addToast: (m: string) => void;
+}) {
+  const code = useMemo(() => generateServerCode(server, language), [server, language]);
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 z-40 flex flex-col bg-[#070b14] lg:hidden">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.06]">
+        <SectionLabel>Generated Code ({language === "typescript" ? "TS" : "Python"})</SectionLabel>
+        <div className="flex gap-2">
+          <CopyButton text={code} label="Copy" onCopy={() => addToast("Code copied")} />
+          <button onClick={onClose} className="text-slate-500 hover:text-white text-lg px-1">✕</button>
+        </div>
+      </div>
+      <pre className="flex-1 overflow-auto p-4 text-[10.5px] leading-[1.7] font-mono whitespace-pre-wrap break-words">
+        {code.split("\n").map((line, i) => {
+          let c = "#94a3b8";
+          if (/^\s*(import|from|const|let|var|async|await|return|export|def|class)\b/.test(line)) c = "#c084fc";
+          if (/^\s*(\/\/|#)/.test(line)) c = "#334155";
+          if (/["'`]/.test(line) && !/import|from/.test(line)) c = "#22c55e";
+          if (/server\.(tool|resource|prompt)|@mcp\.(tool|resource|prompt)/.test(line)) c = "#f59e0b";
+          return <div key={i} className="flex"><span className="text-slate-700 w-6 text-right mr-3 select-none text-[9px]">{i + 1}</span><span style={{ color: c }}>{line || " "}</span></div>;
+        })}
+      </pre>
+    </div>
+  );
+}
+
 /* ── Primitive Editor ────────────────── */
 function PrimitiveEditor({ primitive, onUpdate, onAddParam, onUpdateParam, onRemoveParam }: {
   primitive: MCPPrimitive; onUpdate: (u: Partial<MCPPrimitive>) => void;

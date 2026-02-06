@@ -1,7 +1,7 @@
 {
   "name": "mcp-forge",
-  "version": "1.0.0",
-  "description": "Visual MCP Server Builder & Registry — Build, test, and ship Model Context Protocol servers",
+  "version": "2.0.0",
+  "description": "Visual MCP Server Builder & Registry — Build, test, and ship Model Context Protocol servers with TypeScript or Python output",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -44,12 +44,14 @@
     "developer-tools",
     "code-generation",
     "typescript",
-    "nextjs"
+    "python",
+    "nextjs",
+    "visual-builder"
   ],
-  "author": "Michael",
+  "author": "Michael Palmer",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/YOUR_USERNAME/mcp-forge"
+    "url": "https://github.com/mpalmer79/mcp-forge"
   }
 }

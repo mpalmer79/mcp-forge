@@ -310,6 +310,7 @@ function BuilderTab({ server, setServer, language, addToast, onShowCode }: {
   const [selectedPrimitive, setSelectedPrimitive] = useState<string | null>(null);
   const [editingTool, setEditingTool] = useState<MCPPrimitive | null>(null);
   const [sidebarSearch, setSidebarSearch] = useState("");
+  const [mobilePanelOpen, setMobilePanelOpen] = useState(false);
   const addPrimitive = useCallback((type: PrimitiveType) => {
     const id = `${type}_${Date.now()}`;
     const base: MCPPrimitive = { id, type, name: "", description: "" };
@@ -318,6 +319,7 @@ function BuilderTab({ server, setServer, language, addToast, onShowCode }: {
     else { base.template = ""; base.arguments = []; }
     setServer((s) => ({ ...s, primitives: [...s.primitives, base] }));
     setSelectedPrimitive(id); setEditingTool(base); addToast(`Added new ${type}`);
+    setMobilePanelOpen(false);
   }, [setServer, addToast]);
   const updatePrimitive = useCallback((id: string, updates: Partial<MCPPrimitive>) => {
     setServer((s) => ({ ...s, primitives: s.primitives.map((p) => (p.id === id ? { ...p, ...updates } : p)) }));
@@ -334,6 +336,7 @@ function BuilderTab({ server, setServer, language, addToast, onShowCode }: {
     const np = { ...orig, id: `${orig.type}_${Date.now()}`, name: `${orig.name}_copy`, parameters: orig.parameters?.map((p) => ({ ...p })) };
     setServer((s) => ({ ...s, primitives: [...s.primitives, np] }));
     setSelectedPrimitive(np.id); setEditingTool(np); addToast(`Duplicated ${orig.name}`);
+    setMobilePanelOpen(false);
   }, [server.primitives, setServer, addToast]);
   const movePrimitive = useCallback((id: string, dir: "up" | "down") => {
     setServer((s) => {
@@ -360,63 +363,90 @@ function BuilderTab({ server, setServer, language, addToast, onShowCode }: {
     return server.primitives.filter((p) => p.name.toLowerCase().includes(q) || p.type.includes(q) || p.description.toLowerCase().includes(q));
   }, [server.primitives, sidebarSearch]);
 
-  return (
-    <div className="flex h-full">
-      {/* Left: config + primitives */}
-      <div className="w-[280px] flex-shrink-0 border-r border-white/[0.04] p-4 overflow-y-auto hidden md:block">
-        <SectionLabel>Server Info</SectionLabel>
-        <div className="flex flex-col gap-2 mb-5">
-          <TextInput value={server.name} onChange={(v) => setServer((s) => ({ ...s, name: v }))} placeholder="server-name" />
-          <TextInput value={server.description} onChange={(v) => setServer((s) => ({ ...s, description: v }))} placeholder="Description..." />
-          <div className="flex gap-2 items-center"><SectionLabel>Transport</SectionLabel>
-            <SelectInput value={server.transport} onChange={(v) => setServer((s) => ({ ...s, transport: v as MCPServer["transport"] }))} options={TRANSPORTS} /></div>
+  /* Shared sidebar content used in both desktop sidebar and mobile drawer */
+  const sidebarContent = (
+    <>
+      <SectionLabel>Server Info</SectionLabel>
+      <div className="flex flex-col gap-2 mb-5">
+        <TextInput value={server.name} onChange={(v) => setServer((s) => ({ ...s, name: v }))} placeholder="server-name" />
+        <TextInput value={server.description} onChange={(v) => setServer((s) => ({ ...s, description: v }))} placeholder="Description..." />
+        <div className="flex gap-2 items-center"><SectionLabel>Transport</SectionLabel>
+          <SelectInput value={server.transport} onChange={(v) => setServer((s) => ({ ...s, transport: v as MCPServer["transport"] }))} options={TRANSPORTS} /></div>
+      </div>
+      <SectionLabel>Primitives ({server.primitives.length})</SectionLabel>
+      {server.primitives.length > 3 && (
+        <div className="mb-2">
+          <input value={sidebarSearch} onChange={(e) => setSidebarSearch(e.target.value)} placeholder="Search primitives..."
+            className="w-full px-2.5 py-1.5 bg-[#0c1222] border border-white/[0.06] rounded-md text-slate-400 text-[11px] font-mono outline-none focus:border-forge-500/30 transition-colors" />
         </div>
-        <SectionLabel>Primitives ({server.primitives.length})</SectionLabel>
-        {server.primitives.length > 3 && (
-          <div className="mb-2">
-            <input value={sidebarSearch} onChange={(e) => setSidebarSearch(e.target.value)} placeholder="Search primitives..."
-              className="w-full px-2.5 py-1.5 bg-[#0c1222] border border-white/[0.06] rounded-md text-slate-400 text-[11px] font-mono outline-none focus:border-forge-500/30 transition-colors" />
+      )}
+      <div className="flex gap-1.5 mb-3">
+        {(Object.entries(PRIMITIVE_TYPES) as [PrimitiveType, typeof PRIMITIVE_TYPES[string]][]).map(([type, info]) => (
+          <button key={type} onClick={() => addPrimitive(type)} className="flex-1 py-1.5 px-1 rounded-md text-[10px] font-mono font-semibold transition-all hover:opacity-80"
+            style={{ background: `${info.color}08`, border: `1px dashed ${info.color}40`, color: info.color }}>
+            {info.icon} {info.label}
+          </button>
+        ))}
+      </div>
+      <div className="flex flex-col gap-1">
+        {filteredPrimitives.map((p) => {
+          const info = PRIMITIVE_TYPES[p.type]; const isSel = selectedPrimitive === p.id;
+          return (
+            <div key={p.id} className="rounded-md cursor-pointer transition-all flex items-center gap-2 px-2.5 py-2 group"
+              style={{ background: isSel ? `${info.color}10` : "transparent", border: `1px solid ${isSel ? `${info.color}30` : "rgba(255,255,255,0.04)"}` }}
+              onClick={() => { setSelectedPrimitive(p.id); setEditingTool(p); setMobilePanelOpen(false); }}>
+              <span className="text-sm">{info.icon}</span>
+              <div className="flex-1 min-w-0">
+                <div className="text-xs text-slate-200 font-medium font-mono truncate">{p.name || `untitled_${p.type}`}</div>
+                <div className="text-[9px] text-slate-600 font-mono">{info.label}{p.type === "tool" && p.parameters?.length ? ` · ${p.parameters.length} params` : ""}</div>
+              </div>
+              <div className="hidden group-hover:flex items-center gap-0.5">
+                <button onClick={(e) => { e.stopPropagation(); movePrimitive(p.id, "up"); }} className="text-slate-600 hover:text-slate-300 text-[10px] p-0.5" title="Move up">↑</button>
+                <button onClick={(e) => { e.stopPropagation(); movePrimitive(p.id, "down"); }} className="text-slate-600 hover:text-slate-300 text-[10px] p-0.5" title="Move down">↓</button>
+                <button onClick={(e) => { e.stopPropagation(); duplicatePrimitive(p.id); }} className="text-slate-600 hover:text-slate-300 text-[10px] p-0.5" title="Duplicate">⊕</button>
+                <button onClick={(e) => { e.stopPropagation(); removePrimitive(p.id); }} className="text-slate-600 hover:text-red-400 text-sm p-0.5" title="Remove">×</button>
+              </div>
+            </div>
+          );
+        })}
+        {server.primitives.length === 0 && <div className="p-5 text-center text-slate-600 text-[11px] font-mono">Add tools, resources, or prompts<br />using the buttons above</div>}
+        {sidebarSearch && filteredPrimitives.length === 0 && server.primitives.length > 0 && (
+          <div className="p-4 text-center text-slate-600 text-[11px] font-mono">No matches for &quot;{sidebarSearch}&quot;</div>
+        )}
+      </div>
+    </>
+  );
+
+  return (
+    <div className="flex flex-col md:flex-row h-full">
+      {/* Mobile: toggle bar + collapsible panel */}
+      <div className="md:hidden flex-shrink-0">
+        <div className="flex items-center gap-2 px-3 py-2 border-b border-white/[0.06]">
+          <button onClick={() => setMobilePanelOpen(!mobilePanelOpen)}
+            className="flex-1 flex items-center justify-between py-1.5 px-3 bg-white/[0.04] border border-white/[0.08] rounded-md text-[11px] font-mono text-slate-300 hover:bg-white/[0.06] transition-all">
+            <span>☰ {server.name || "my-server"} · {server.primitives.length} primitives</span>
+            <span className="text-slate-600 text-[10px]">{mobilePanelOpen ? "▲" : "▼"}</span>
+          </button>
+          <button onClick={onShowCode} className="py-1.5 px-3 bg-forge-500/[0.08] border border-forge-500/20 rounded-md text-forge-400 text-[10px] font-mono font-semibold flex-shrink-0">
+            &lt;/&gt; Code
+          </button>
+        </div>
+        {mobilePanelOpen && (
+          <div className="p-3 border-b border-white/[0.06] bg-[#0a0f1a] max-h-[55vh] overflow-y-auto">
+            {sidebarContent}
           </div>
         )}
-        <div className="flex gap-1.5 mb-3">
-          {(Object.entries(PRIMITIVE_TYPES) as [PrimitiveType, typeof PRIMITIVE_TYPES[string]][]).map(([type, info]) => (
-            <button key={type} onClick={() => addPrimitive(type)} className="flex-1 py-1.5 px-1 rounded-md text-[10px] font-mono font-semibold transition-all hover:opacity-80"
-              style={{ background: `${info.color}08`, border: `1px dashed ${info.color}40`, color: info.color }}>
-              {info.icon} {info.label}
-            </button>
-          ))}
-        </div>
-        <div className="flex flex-col gap-1">
-          {filteredPrimitives.map((p) => {
-            const info = PRIMITIVE_TYPES[p.type]; const isSel = selectedPrimitive === p.id;
-            return (
-              <div key={p.id} className="rounded-md cursor-pointer transition-all flex items-center gap-2 px-2.5 py-2 group"
-                style={{ background: isSel ? `${info.color}10` : "transparent", border: `1px solid ${isSel ? `${info.color}30` : "rgba(255,255,255,0.04)"}` }}
-                onClick={() => { setSelectedPrimitive(p.id); setEditingTool(p); }}>
-                <span className="text-sm">{info.icon}</span>
-                <div className="flex-1 min-w-0">
-                  <div className="text-xs text-slate-200 font-medium font-mono truncate">{p.name || `untitled_${p.type}`}</div>
-                  <div className="text-[9px] text-slate-600 font-mono">{info.label}{p.type === "tool" && p.parameters?.length ? ` · ${p.parameters.length} params` : ""}</div>
-                </div>
-                <div className="hidden group-hover:flex items-center gap-0.5">
-                  <button onClick={(e) => { e.stopPropagation(); movePrimitive(p.id, "up"); }} className="text-slate-600 hover:text-slate-300 text-[10px] p-0.5" title="Move up">↑</button>
-                  <button onClick={(e) => { e.stopPropagation(); movePrimitive(p.id, "down"); }} className="text-slate-600 hover:text-slate-300 text-[10px] p-0.5" title="Move down">↓</button>
-                  <button onClick={(e) => { e.stopPropagation(); duplicatePrimitive(p.id); }} className="text-slate-600 hover:text-slate-300 text-[10px] p-0.5" title="Duplicate">⊕</button>
-                  <button onClick={(e) => { e.stopPropagation(); removePrimitive(p.id); }} className="text-slate-600 hover:text-red-400 text-sm p-0.5" title="Remove">×</button>
-                </div>
-              </div>
-            );
-          })}
-          {server.primitives.length === 0 && <div className="p-5 text-center text-slate-600 text-[11px] font-mono">Add tools, resources, or prompts<br />using the buttons above</div>}
-          {sidebarSearch && filteredPrimitives.length === 0 && server.primitives.length > 0 && (
-            <div className="p-4 text-center text-slate-600 text-[11px] font-mono">No matches for &quot;{sidebarSearch}&quot;</div>
-          )}
-        </div>
       </div>
+
+      {/* Desktop: fixed sidebar */}
+      <div className="w-[280px] flex-shrink-0 border-r border-white/[0.04] p-4 overflow-y-auto hidden md:block">
+        {sidebarContent}
+      </div>
+
       {/* Center: editor */}
       <div className="flex-1 p-4 md:p-5 overflow-y-auto min-w-0">
-        {/* Mobile code button */}
-        <div className="lg:hidden mb-3">
+        {/* Mobile code button (only if panel is closed, since we already have one in the bar) */}
+        <div className="lg:hidden hidden md:block mb-3">
           <button onClick={onShowCode} className="w-full py-2 bg-forge-500/[0.08] border border-forge-500/20 rounded-md text-forge-400 text-[11px] font-mono font-semibold">
             &lt;/&gt; View Generated Code
           </button>
@@ -428,7 +458,13 @@ function BuilderTab({ server, setServer, language, addToast, onShowCode }: {
           <div className="flex flex-col items-center justify-center h-full text-slate-600">
             <div className="text-4xl mb-3 opacity-40">🔧</div>
             <div className="text-sm font-mono">Select a primitive to edit</div>
-            <div className="text-[11px] font-mono mt-1 text-slate-700">or add a new tool, resource, or prompt</div>
+            <div className="text-[11px] font-mono mt-1 text-slate-700">
+              {server.primitives.length === 0 ? (
+                <><span className="md:hidden">Tap the menu bar above to add primitives</span><span className="hidden md:inline">or add a new tool, resource, or prompt</span></>
+              ) : (
+                <><span className="md:hidden">Tap the menu bar above to select one</span><span className="hidden md:inline">or add a new tool, resource, or prompt</span></>
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -540,7 +576,31 @@ function PlaygroundTab({ server, addToast }: { server: MCPServer; addToast: (m: 
   }, [server.primitives]);
 
   return (
-    <div className="flex h-full">
+    <div className="flex flex-col md:flex-row h-full">
+      {/* Mobile: inline primitives bar */}
+      <div className="md:hidden flex-shrink-0 border-b border-white/[0.06] p-3">
+        <div className="flex items-center gap-2 mb-2">
+          <SectionLabel>Primitives ({allPrims.length})</SectionLabel>
+          <button onClick={simulateList} disabled={running} className="ml-auto py-1 px-2.5 bg-purple-500/[0.08] border border-purple-500/20 rounded-md text-purple-400 text-[10px] font-mono font-semibold disabled:opacity-40">↻ Capabilities</button>
+        </div>
+        {allPrims.length === 0 ? (
+          <div className="text-center text-slate-600 text-[10px] font-mono py-2">No primitives yet. Add some in Builder tab.</div>
+        ) : (
+          <div className="flex flex-wrap gap-1.5">
+            {allPrims.map((p) => {
+              const info = PRIMITIVE_TYPES[p.type];
+              return (
+                <button key={p.id} onClick={() => simulateCall(p)} disabled={running}
+                  className="py-1.5 px-2.5 bg-[#0c1222] border border-white/[0.06] rounded-md disabled:opacity-40 hover:border-white/[0.12] transition-all text-left">
+                  <div className="text-[10px] font-mono font-semibold text-slate-200">{info.icon} {p.name || "unnamed"}</div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Desktop: fixed sidebar */}
       <div className="w-[260px] flex-shrink-0 border-r border-white/[0.04] p-4 overflow-y-auto hidden md:block">
         <SectionLabel>Primitives ({allPrims.length})</SectionLabel>
         <button onClick={simulateList} disabled={running} className="w-full py-2 mb-3 bg-purple-500/[0.08] border border-purple-500/20 rounded-md text-purple-400 text-[11px] font-mono font-semibold disabled:opacity-40">↻ Capabilities</button>
@@ -556,17 +616,19 @@ function PlaygroundTab({ server, addToast }: { server: MCPServer; addToast: (m: 
         })}
         {allPrims.length === 0 && <div className="text-center text-slate-600 text-[11px] font-mono p-5">No primitives yet.<br />Add some in Builder.</div>}
       </div>
+
+      {/* Log area */}
       <div className="flex-1 flex flex-col min-w-0">
         <div className="flex items-center justify-between px-4 pt-3 pb-2">
           <SectionLabel>JSON-RPC Log ({logs.length})</SectionLabel>
           {logs.length > 0 && <button onClick={() => { setLogs([]); addToast("Logs cleared", "info"); }} className="text-[10px] text-slate-600 hover:text-slate-300 font-mono">Clear</button>}
         </div>
         <div ref={logRef} className="flex-1 overflow-y-auto px-4 pb-4 bg-[#050810]">
-          {logs.length === 0 && <div className="text-center text-slate-700 text-[12px] font-mono p-10">Click a primitive to simulate a call.</div>}
+          {logs.length === 0 && <div className="text-center text-slate-700 text-[12px] font-mono p-10"><span className="hidden md:inline">Click a primitive to simulate a call.</span><span className="md:hidden">Tap a primitive above to simulate a call.</span></div>}
           {logs.map((log, i) => (
             <div key={i} className="mb-2 p-3 rounded-md"
               style={{ background: log.type === "request" ? "rgba(59,130,246,0.04)" : "rgba(34,197,94,0.04)", border: `1px solid ${log.type === "request" ? "rgba(59,130,246,0.1)" : "rgba(34,197,94,0.1)"}` }}>
-              <div className="flex gap-2 items-center mb-1.5">
+              <div className="flex gap-2 items-center mb-1.5 flex-wrap">
                 <Badge color={log.type === "request" ? "#3b82f6" : "#22c55e"}>{log.type === "request" ? "→ REQ" : "← RES"}</Badge>
                 <span className="text-[9px] text-slate-600 font-mono">{log.time}</span>
                 <span className="text-[10px] text-slate-500 font-mono">{log.method}</span>

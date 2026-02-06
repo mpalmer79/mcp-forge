@@ -746,6 +746,10 @@ function BuilderPageInner() {
               <span className="text-[9px] text-slate-600">v2.1</span>
             </div>
           </Link>
+          <Link href="/" className="ml-1 px-2.5 py-1 bg-white/[0.04] border border-white/[0.08] rounded-md text-slate-400 text-[10px] font-mono font-semibold hover:text-white hover:bg-white/[0.08] hover:border-white/[0.15] transition-all flex items-center gap-1.5">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            <span className="hidden sm:inline">Home</span>
+          </Link>
         </div>
         {/* Tabs */}
         <div className="flex gap-0.5">

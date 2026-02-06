@@ -1,6 +1,6 @@
 {
   "name": "mcp-forge",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Visual MCP Server Builder & Registry — Build, test, and ship Model Context Protocol servers with TypeScript or Python output",
   "private": true,
   "scripts": {

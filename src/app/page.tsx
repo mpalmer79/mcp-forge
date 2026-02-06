@@ -159,6 +159,7 @@ const FEATURES = [
     color: "#22c55e",
     icon: "🔧",
     stat: "Zero boilerplate",
+    img: "https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=800&auto=format&q=80",
   },
   {
     title: "Server Registry",
@@ -166,6 +167,7 @@ const FEATURES = [
     color: "#f59e0b",
     icon: "📦",
     stat: "18+ servers indexed",
+    img: "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=800&auto=format&q=80",
   },
   {
     title: "Live Playground",
@@ -173,6 +175,7 @@ const FEATURES = [
     color: "#a78bfa",
     icon: "▶",
     stat: "Real-time testing",
+    img: "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=800&auto=format&q=80",
   },
   {
     title: "Config Generator",
@@ -180,6 +183,7 @@ const FEATURES = [
     color: "#3b82f6",
     icon: "⚙",
     stat: "TS + Python output",
+    img: "https://images.unsplash.com/photo-1629654297299-c8506221ca97?w=800&auto=format&q=80",
   },
   {
     title: "Starter Templates",
@@ -187,6 +191,7 @@ const FEATURES = [
     color: "#06b6d4",
     icon: "🚀",
     stat: "5 templates",
+    img: "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=800&auto=format&q=80",
   },
   {
     title: "Export & Share",
@@ -194,6 +199,7 @@ const FEATURES = [
     color: "#f43f5e",
     icon: "📤",
     stat: "Import / Export",
+    img: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=800&auto=format&q=80",
   },
 ];
 
@@ -400,37 +406,44 @@ export default function LandingPage() {
             {FEATURES.map((f) => (
               <div
                 key={f.title}
-                className="group relative p-6 sm:p-7 rounded-2xl border border-white/[0.06] bg-[#0c1222]/50 hover:border-white/[0.12] transition-all duration-300 hover:-translate-y-0.5"
+                className="group relative p-6 sm:p-7 rounded-2xl border border-white/[0.06] overflow-hidden hover:border-white/[0.15] transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-black/20"
               >
-                {/* Glow on hover */}
+                {/* Background Image */}
                 <div
-                  className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                  className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"
+                  style={{ backgroundImage: `url(${f.img})` }}
+                />
+                {/* Dark overlay */}
+                <div className="absolute inset-0 bg-gradient-to-t from-[#0a0e1a] via-[#0a0e1a]/85 to-[#0a0e1a]/70 group-hover:via-[#0a0e1a]/80 group-hover:to-[#0a0e1a]/60 transition-all duration-300" />
+                {/* Color accent glow on hover */}
+                <div
+                  className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
                   style={{
-                    background: `radial-gradient(400px circle at 50% 0%, ${f.color}08, transparent)`,
+                    background: `radial-gradient(400px circle at 50% 0%, ${f.color}15, transparent)`,
                   }}
                 />
 
-                <div className="relative">
+                <div className="relative z-10">
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-3">
-                      <span className="text-2xl">{f.icon}</span>
+                      <span className="text-2xl drop-shadow-lg">{f.icon}</span>
                       <h3
-                        className="font-semibold text-[15px] font-mono"
+                        className="font-semibold text-[15px] font-mono drop-shadow-md"
                         style={{ color: f.color }}
                       >
                         {f.title}
                       </h3>
                     </div>
                   </div>
-                  <p className="text-[13px] text-slate-400 leading-relaxed font-mono mb-4">
+                  <p className="text-[13px] text-slate-300 leading-relaxed font-mono mb-4 drop-shadow-sm">
                     {f.desc}
                   </p>
                   <div
-                    className="inline-flex items-center gap-1.5 text-[10px] font-mono font-semibold px-2.5 py-1 rounded-md"
+                    className="inline-flex items-center gap-1.5 text-[10px] font-mono font-semibold px-2.5 py-1 rounded-md backdrop-blur-sm"
                     style={{
                       color: f.color,
-                      background: `${f.color}10`,
-                      border: `1px solid ${f.color}20`,
+                      background: `${f.color}18`,
+                      border: `1px solid ${f.color}30`,
                     }}
                   >
                     {f.stat}
@@ -544,7 +557,7 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-[10px] font-mono text-slate-500">
           <div className="flex items-center gap-2">
             <span className="text-forge-400">⚡</span>
-            <span>MCP Forge v2.0.0</span>
+            <span>MCP Forge v2.1.0</span>
           </div>
           <div className="flex flex-wrap justify-center gap-x-6 gap-y-1">
             <span>MCP Spec 2025-11-25</span>

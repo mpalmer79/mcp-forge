@@ -421,7 +421,6 @@ function BuilderTab({ server, setServer, language, addToast, onShowCode }: {
             &lt;/&gt; View Generated Code
           </button>
         </div>
-      <div className="flex-1 p-4 md:p-5 overflow-y-auto min-w-0">
         {editingTool ? (
           <PrimitiveEditor primitive={editingTool} onUpdate={(u) => updatePrimitive(editingTool.id, u)}
             onAddParam={() => addParam(editingTool.id)} onUpdateParam={(i, u) => updateParam(editingTool.id, i, u)} onRemoveParam={(i) => removeParam(editingTool.id, i)} />

@@ -323,7 +323,7 @@ export default function LandingPage() {
             </div>
 
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold leading-tight mb-6 tracking-tight">
-              Build MCP Servers
+              Build Model Context Protocol Servers
               <br />
               <span className="gradient-text">Visually.</span>
             </h1>

@@ -1,4 +1,4 @@
-// MCP Forge - TypeScript Interfaces
+// MCP Forge v2 — TypeScript Interfaces
 // Based on MCP Specification 2025-11-25
 
 export type TransportType = "stdio" | "http" | "sse";
@@ -25,7 +25,7 @@ export interface MCPPrimitive {
   mimeType?: string;
   // prompt-specific
   template?: string;
-  arguments?: { name: string; description: string }[];
+  arguments?: { name: string; description: string; required?: boolean }[];
 }
 
 export interface MCPServer {
@@ -33,6 +33,13 @@ export interface MCPServer {
   description: string;
   transport: TransportType;
   primitives: MCPPrimitive[];
+  version?: string;
+  auth?: AuthConfig;
+}
+
+export interface AuthConfig {
+  type: "none" | "bearer" | "api-key";
+  envVar?: string;
 }
 
 export interface RegistryServer {
@@ -63,4 +70,19 @@ export interface PrimitiveTypeInfo {
   icon: string;
   color: string;
   desc: string;
+}
+
+export interface ServerTemplate {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  category: "api" | "database" | "utility" | "ai" | "automotive";
+  server: MCPServer;
+}
+
+export interface Toast {
+  id: string;
+  message: string;
+  type: "success" | "error" | "info";
 }

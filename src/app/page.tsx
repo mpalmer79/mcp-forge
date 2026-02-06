@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 
-/* ─── Animated Grid Background ─────────────────── */
-function GridBackground() {
+/* ─── Floating Particles (entire page) ─────────── */
+function FloatingParticles() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -16,65 +16,82 @@ function GridBackground() {
     let animId: number;
     let time = 0;
 
+    interface Particle {
+      x: number; y: number; vx: number; vy: number;
+      size: number; alpha: number; color: string; pulse: number;
+    }
+
+    const particles: Particle[] = [];
+    const colors = [
+      "34, 197, 94",   // green
+      "59, 130, 246",  // blue
+      "167, 139, 250", // purple
+      "6, 182, 212",   // cyan
+      "245, 158, 11",  // amber
+    ];
+
     const resize = () => {
       canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
+      canvas.height = document.documentElement.scrollHeight;
+      // Repopulate if needed
+      while (particles.length < 80) {
+        particles.push({
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height,
+          vx: (Math.random() - 0.5) * 0.3,
+          vy: -Math.random() * 0.2 - 0.05,
+          size: Math.random() * 2.5 + 0.5,
+          alpha: Math.random() * 0.5 + 0.1,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          pulse: Math.random() * Math.PI * 2,
+        });
+      }
     };
     resize();
     window.addEventListener("resize", resize);
 
     const draw = () => {
-      time += 0.003;
+      time += 0.01;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      const spacing = 48;
-      const cols = Math.ceil(canvas.width / spacing) + 1;
-      const rows = Math.ceil(canvas.height / spacing) + 1;
+      for (const p of particles) {
+        p.x += p.vx + Math.sin(time + p.pulse) * 0.15;
+        p.y += p.vy;
+        p.pulse += 0.02;
+        const a = p.alpha * (0.6 + Math.sin(p.pulse) * 0.4);
 
-      for (let x = 0; x < cols; x++) {
-        for (let y = 0; y < rows; y++) {
-          const px = x * spacing;
-          const py = y * spacing;
-          const dist = Math.sqrt(
-            Math.pow(px - canvas.width * 0.3, 2) +
-            Math.pow(py - canvas.height * 0.4, 2)
-          );
-          const wave = Math.sin(dist * 0.005 - time * 2) * 0.5 + 0.5;
-          const alpha = wave * 0.18 + 0.04;
+        // Glow
+        ctx.beginPath();
+        const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size * 4);
+        grad.addColorStop(0, `rgba(${p.color}, ${a * 0.6})`);
+        grad.addColorStop(1, `rgba(${p.color}, 0)`);
+        ctx.fillStyle = grad;
+        ctx.arc(p.x, p.y, p.size * 4, 0, Math.PI * 2);
+        ctx.fill();
 
-          const isHighlight =
-            dist < 350 &&
-            Math.sin(time * 3 + x * 0.5) > 0.65 &&
-            Math.sin(time * 2 + y * 0.3) > 0.65;
+        // Core dot
+        ctx.beginPath();
+        ctx.fillStyle = `rgba(${p.color}, ${a})`;
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
 
-          if (isHighlight) {
-            ctx.fillStyle = `rgba(34, 197, 94, ${alpha * 3.5})`;
-            ctx.beginPath();
-            ctx.arc(px, py, 3, 0, Math.PI * 2);
-            ctx.fill();
-          } else {
-            ctx.fillStyle = `rgba(148, 163, 184, ${alpha})`;
-            ctx.beginPath();
-            ctx.arc(px, py, 1, 0, Math.PI * 2);
-            ctx.fill();
-          }
-        }
+        // Wrap around
+        if (p.y < -10) { p.y = canvas.height + 10; p.x = Math.random() * canvas.width; }
+        if (p.x < -10) p.x = canvas.width + 10;
+        if (p.x > canvas.width + 10) p.x = -10;
       }
       animId = requestAnimationFrame(draw);
     };
     draw();
 
-    return () => {
-      cancelAnimationFrame(animId);
-      window.removeEventListener("resize", resize);
-    };
+    return () => { cancelAnimationFrame(animId); window.removeEventListener("resize", resize); };
   }, []);
 
   return (
     <canvas
       ref={canvasRef}
-      className="absolute inset-0 pointer-events-none"
-      style={{ zIndex: 0, opacity: 0.6 }}
+      className="fixed inset-0 pointer-events-none"
+      style={{ zIndex: 1, opacity: 0.7 }}
     />
   );
 }
@@ -111,7 +128,6 @@ function AnimatedTerminal() {
 
   return (
     <div className="code-block relative overflow-hidden" style={{ maxHeight: 380 }}>
-      {/* Terminal chrome */}
       <div className="flex items-center gap-2 mb-4 pb-3 border-b border-white/5">
         <div className="w-3 h-3 rounded-full bg-red-500/60" />
         <div className="w-3 h-3 rounded-full bg-yellow-500/60" />
@@ -125,27 +141,18 @@ function AnimatedTerminal() {
           </span>
         </div>
       </div>
-      {/* Code lines */}
       <div className="space-y-0">
         {CODE_LINES.slice(0, visibleLines).map((line, i) => (
           <div key={i} className="flex items-center gap-3">
-            <span className="text-[10px] text-slate-600 font-mono w-5 text-right select-none">
-              {i + 1}
-            </span>
-            <span
-              className="font-mono text-[11px] leading-relaxed animate-fade-in"
-              style={{ color: line.color || "#475569" }}
-            >
+            <span className="text-[10px] text-slate-600 font-mono w-5 text-right select-none">{i + 1}</span>
+            <span className="font-mono text-[11px] leading-relaxed animate-fade-in" style={{ color: line.color || "#475569" }}>
               {line.text || "\u00A0"}
             </span>
           </div>
         ))}
       </div>
       {visibleLines < CODE_LINES.length && (
-        <span
-          className="inline-block w-2 h-4 bg-forge-500 ml-8"
-          style={{ animation: "blink 0.8s infinite" }}
-        />
+        <span className="inline-block w-2 h-4 bg-forge-500 ml-8" style={{ animation: "blink 0.8s infinite" }} />
       )}
     </div>
   );
@@ -203,6 +210,31 @@ const FEATURES = [
   },
 ];
 
+/* ─── Steps data ───────────────────────────────── */
+const STEPS = [
+  {
+    step: "01",
+    title: "Design",
+    desc: "Use the visual builder or pick a starter template. Define tools, resources, and prompts with typed parameters.",
+    color: "#22c55e",
+    img: "https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=800&auto=format&q=80",
+  },
+  {
+    step: "02",
+    title: "Test",
+    desc: "Hit the playground tab to simulate JSON-RPC calls. See formatted request/response logs in real time.",
+    color: "#f59e0b",
+    img: "https://images.unsplash.com/photo-1504639725590-34d0984388bd?w=800&auto=format&q=80",
+  },
+  {
+    step: "03",
+    title: "Ship",
+    desc: "Copy the generated TypeScript or Python code, grab the config JSON, and deploy. You're live.",
+    color: "#a78bfa",
+    img: "https://images.unsplash.com/photo-1667372393119-3d4c48d07fc9?w=800&auto=format&q=80",
+  },
+];
+
 const STATS = [
   { value: "3", label: "MCP Primitives", sub: "Tools · Resources · Prompts", color: "#22c55e" },
   { value: "2025-11-25", label: "Spec Version", sub: "Latest MCP specification", color: "#3b82f6" },
@@ -220,18 +252,21 @@ export default function LandingPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#0a0e1a] ambient-glow">
+    <div className="min-h-screen bg-[#080c18] ambient-glow">
+      {/* Floating particles across entire page */}
+      <FloatingParticles />
+
       {/* ── Nav ─────────────────────── */}
-      <nav className="relative z-20 border-b border-white/[0.06] px-4 sm:px-6 py-4 backdrop-blur-sm bg-[#0a0e1a]/80 sticky top-0">
+      <nav className="relative z-20 px-4 sm:px-6 py-4 backdrop-blur-md bg-[#080c18]/70 sticky top-0" style={{ borderBottom: "1px solid rgba(34,197,94,0.1)" }}>
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-forge-400 to-forge-600 flex items-center justify-center text-sm font-bold shadow-lg shadow-forge-500/25">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-forge-400 to-forge-600 flex items-center justify-center text-sm font-bold shadow-lg shadow-forge-500/30">
               ⚡
             </div>
             <div className="flex items-center gap-2">
               <span className="font-mono font-bold text-[15px] tracking-tight">MCP Forge</span>
-              <span className="text-[9px] px-1.5 py-0.5 bg-forge-500/10 text-forge-400 rounded font-mono border border-forge-500/20">
-                v2.0
+              <span className="text-[9px] px-1.5 py-0.5 bg-forge-500/15 text-forge-400 rounded font-mono border border-forge-500/25">
+                v2.1
               </span>
             </div>
           </div>
@@ -303,23 +338,17 @@ export default function LandingPage() {
 
       {/* ── Hero ──────────────────────── */}
       <section className="relative z-10 px-4 sm:px-6 pt-16 sm:pt-24 pb-16 sm:pb-20 overflow-hidden">
-        <GridBackground />
-
-        {/* Ambient orbs - vivid */}
-        <div className="absolute top-10 left-[5%] w-[600px] h-[600px] rounded-full bg-forge-500/[0.1] blur-[150px] pointer-events-none animate-pulse" />
-        <div className="absolute top-32 right-[0%] w-[500px] h-[500px] rounded-full bg-blue-500/[0.08] blur-[120px] pointer-events-none" />
-        <div className="absolute -bottom-20 left-[30%] w-[400px] h-[400px] rounded-full bg-purple-500/[0.06] blur-[100px] pointer-events-none" />
+        {/* Vivid ambient orbs */}
+        <div className="absolute top-0 left-[5%] w-[700px] h-[700px] rounded-full bg-forge-500/[0.12] blur-[180px] pointer-events-none" />
+        <div className="absolute top-20 right-[0%] w-[500px] h-[500px] rounded-full bg-blue-500/[0.10] blur-[140px] pointer-events-none" />
+        <div className="absolute -bottom-32 left-[40%] w-[500px] h-[500px] rounded-full bg-purple-500/[0.08] blur-[120px] pointer-events-none" />
 
         <div className="relative max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
-          <div
-            className={`transition-all duration-1000 ${
-              mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
-            }`}
-          >
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-forge-500/10 border border-forge-500/25 rounded-full mb-6">
+          <div className={`transition-all duration-1000 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-forge-500/15 border border-forge-500/30 rounded-full mb-6 backdrop-blur-sm">
               <span className="w-2 h-2 rounded-full bg-forge-400 animate-pulse" />
               <span className="text-[10px] font-mono text-forge-400 font-semibold tracking-wider uppercase">
-                MCP Spec 2025-11-25 · v2.0
+                MCP Spec 2025-11-25 · v2.1
               </span>
             </div>
 
@@ -344,13 +373,12 @@ export default function LandingPage() {
               </Link>
               <Link
                 href="/builder?tab=Registry"
-                className="px-6 py-3.5 bg-white/[0.04] border border-white/[0.1] hover:border-white/[0.2] hover:bg-white/[0.06] text-slate-300 font-mono text-sm rounded-lg transition-all text-center"
+                className="px-6 py-3.5 bg-white/[0.06] border border-white/[0.12] hover:border-white/[0.25] hover:bg-white/[0.09] text-slate-300 font-mono text-sm rounded-lg transition-all text-center backdrop-blur-sm"
               >
                 📦 Browse Registry
               </Link>
             </div>
 
-            {/* Quick stats under CTA */}
             <div className="flex gap-6 mt-8 text-[11px] font-mono text-slate-500">
               <span>✓ TypeScript + Python</span>
               <span>✓ 5 starter templates</span>
@@ -358,11 +386,7 @@ export default function LandingPage() {
             </div>
           </div>
 
-          <div
-            className={`transition-all duration-1000 delay-300 ${
-              mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
-            }`}
-          >
+          <div className={`transition-all duration-1000 delay-300 ${mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
             <AnimatedTerminal />
           </div>
         </div>
@@ -371,23 +395,15 @@ export default function LandingPage() {
       {/* ── Stats ───────────────────── */}
       <div className="section-divider" />
       <section className="relative z-10 px-4 sm:px-6 py-12 sm:py-14">
-        {/* Background accent */}
-        <div className="absolute inset-0 bg-gradient-to-b from-forge-500/[0.02] via-transparent to-transparent pointer-events-none" />
-        <div className="max-w-4xl mx-auto grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6">
+        <div className="absolute inset-0 bg-gradient-to-b from-forge-500/[0.03] via-blue-500/[0.02] to-transparent pointer-events-none" />
+        <div className="max-w-4xl mx-auto grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6 relative">
           {STATS.map((stat) => (
             <div key={stat.label} className="stat-card text-center">
-              <div
-                className="text-xl sm:text-2xl font-mono font-bold mb-1"
-                style={{ color: stat.color }}
-              >
+              <div className="text-xl sm:text-2xl font-mono font-bold mb-1" style={{ color: stat.color, textShadow: `0 0 20px ${stat.color}30` }}>
                 {stat.value}
               </div>
-              <div className="text-[10px] sm:text-xs font-mono text-slate-300 font-semibold">
-                {stat.label}
-              </div>
-              <div className="text-[9px] sm:text-[10px] font-mono text-slate-500 mt-1">
-                {stat.sub}
-              </div>
+              <div className="text-[10px] sm:text-xs font-mono text-slate-300 font-semibold">{stat.label}</div>
+              <div className="text-[9px] sm:text-[10px] font-mono text-slate-500 mt-1">{stat.sub}</div>
             </div>
           ))}
         </div>
@@ -396,9 +412,9 @@ export default function LandingPage() {
       {/* ── Features ──────────────────── */}
       <div className="section-divider" />
       <section className="relative z-10 px-4 sm:px-6 py-16 sm:py-24">
-        {/* Section background glow */}
-        <div className="absolute top-0 left-[20%] w-[600px] h-[400px] rounded-full bg-forge-500/[0.06] blur-[150px] pointer-events-none" />
-        <div className="absolute bottom-0 right-[10%] w-[500px] h-[300px] rounded-full bg-blue-500/[0.05] blur-[120px] pointer-events-none" />
+        <div className="absolute top-20 left-[15%] w-[600px] h-[400px] rounded-full bg-forge-500/[0.07] blur-[150px] pointer-events-none" />
+        <div className="absolute bottom-10 right-[10%] w-[500px] h-[350px] rounded-full bg-blue-500/[0.06] blur-[130px] pointer-events-none" />
+        <div className="absolute top-[50%] left-[50%] w-[400px] h-[300px] rounded-full bg-purple-500/[0.04] blur-[100px] pointer-events-none -translate-x-1/2" />
 
         <div className="max-w-6xl mx-auto relative">
           <div className="text-center mb-12 sm:mb-16">
@@ -409,8 +425,7 @@ export default function LandingPage() {
               Everything you need to ship MCP servers
             </h2>
             <p className="text-sm text-slate-400 font-mono max-w-lg mx-auto">
-              From visual design to production deployment — one tool for the
-              entire MCP server lifecycle.
+              From visual design to production deployment — one tool for the entire MCP server lifecycle.
             </p>
           </div>
 
@@ -419,59 +434,28 @@ export default function LandingPage() {
               <div
                 key={f.title}
                 className="group relative p-6 sm:p-7 rounded-2xl overflow-hidden transition-all duration-500 hover:-translate-y-1.5 hover:shadow-2xl"
-                style={{
-                  border: `1px solid ${f.color}25`,
-                  animationDelay: `${idx * 100}ms`,
-                }}
+                style={{ border: `1px solid ${f.color}25` }}
               >
-                {/* Background Image - BRIGHTER */}
-                <div
-                  className="absolute inset-0 bg-cover bg-center transition-all duration-700 group-hover:scale-110 group-hover:brightness-110"
-                  style={{ backgroundImage: `url(${f.img})` }}
-                />
-                {/* Lighter overlay - shows more image */}
-                <div
-                  className="absolute inset-0 transition-all duration-500"
-                  style={{
-                    background: `linear-gradient(160deg, ${f.color}12 0%, rgba(8,12,24,0.65) 30%, rgba(8,12,24,0.55) 70%, ${f.color}08 100%)`,
-                  }}
-                />
-                {/* Bottom gradient for text readability */}
-                <div className="absolute inset-0 bg-gradient-to-t from-[#080c18]/90 via-[#080c18]/40 to-transparent" />
-                {/* Color accent glow on hover */}
-                <div
-                  className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-                  style={{
-                    background: `radial-gradient(500px circle at 50% 0%, ${f.color}20, transparent)`,
-                  }}
-                />
+                {/* Background Image */}
+                <div className="absolute inset-0 bg-cover bg-center transition-all duration-700 group-hover:scale-110 group-hover:brightness-125" style={{ backgroundImage: `url(${f.img})` }} />
+                {/* Tinted overlay - lighter to show photos */}
+                <div className="absolute inset-0 transition-all duration-500" style={{ background: `linear-gradient(160deg, ${f.color}15 0%, rgba(8,12,24,0.55) 40%, rgba(8,12,24,0.45) 70%, ${f.color}08 100%)` }} />
+                {/* Bottom gradient for text */}
+                <div className="absolute inset-0 bg-gradient-to-t from-[#080c18]/85 via-[#080c18]/30 to-transparent" />
+                {/* Color glow on hover */}
+                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{ background: `radial-gradient(500px circle at 50% 0%, ${f.color}25, transparent)` }} />
                 {/* Top accent line */}
-                <div className="absolute top-0 left-0 right-0 h-[2px] opacity-60 group-hover:opacity-100 transition-opacity" style={{ background: `linear-gradient(90deg, transparent, ${f.color}, transparent)` }} />
+                <div className="absolute top-0 left-0 right-0 h-[2px] opacity-50 group-hover:opacity-100 transition-opacity" style={{ background: `linear-gradient(90deg, transparent, ${f.color}, transparent)` }} />
 
                 <div className="relative z-10">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <span className="text-2xl drop-shadow-lg filter brightness-125">{f.icon}</span>
-                      <h3
-                        className="font-semibold text-[15px] font-mono drop-shadow-md"
-                        style={{ color: f.color, textShadow: `0 0 20px ${f.color}40` }}
-                      >
-                        {f.title}
-                      </h3>
-                    </div>
+                  <div className="flex items-center gap-3 mb-4">
+                    <span className="text-2xl drop-shadow-lg">{f.icon}</span>
+                    <h3 className="font-semibold text-[15px] font-mono" style={{ color: f.color, textShadow: `0 0 25px ${f.color}40` }}>{f.title}</h3>
                   </div>
-                  <p className="text-[13px] text-slate-200 leading-relaxed font-mono mb-4" style={{ textShadow: "0 2px 8px rgba(0,0,0,0.6)" }}>
+                  <p className="text-[13px] text-slate-200 leading-relaxed font-mono mb-4" style={{ textShadow: "0 2px 8px rgba(0,0,0,0.7)" }}>
                     {f.desc}
                   </p>
-                  <div
-                    className="inline-flex items-center gap-1.5 text-[10px] font-mono font-semibold px-2.5 py-1 rounded-md backdrop-blur-md"
-                    style={{
-                      color: f.color,
-                      background: `${f.color}20`,
-                      border: `1px solid ${f.color}40`,
-                      boxShadow: `0 0 12px ${f.color}15`,
-                    }}
-                  >
+                  <div className="inline-flex items-center text-[10px] font-mono font-semibold px-2.5 py-1 rounded-md backdrop-blur-md" style={{ color: f.color, background: `${f.color}20`, border: `1px solid ${f.color}40`, boxShadow: `0 0 15px ${f.color}15` }}>
                     {f.stat}
                   </div>
                 </div>
@@ -484,47 +468,40 @@ export default function LandingPage() {
       {/* ── How It Works ──────────────── */}
       <div className="section-divider" />
       <section className="relative z-10 px-4 sm:px-6 py-16 sm:py-20">
-        <div className="max-w-4xl mx-auto">
+        <div className="absolute top-0 right-[20%] w-[500px] h-[300px] rounded-full bg-amber-500/[0.05] blur-[120px] pointer-events-none" />
+
+        <div className="max-w-5xl mx-auto relative">
           <div className="text-center mb-12">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-amber-500/10 border border-amber-500/20 rounded-full mb-4">
+              <span className="text-[10px] font-mono text-amber-400 font-semibold tracking-wider uppercase">How It Works</span>
+            </div>
             <h2 className="text-2xl sm:text-3xl font-bold mb-4">
               Three steps to a running server
             </h2>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
-            {[
-              {
-                step: "01",
-                title: "Design",
-                desc: "Use the visual builder or pick a starter template. Define tools, resources, and prompts with typed parameters.",
-                color: "#22c55e",
-              },
-              {
-                step: "02",
-                title: "Test",
-                desc: "Hit the playground tab to simulate JSON-RPC calls. See formatted request/response logs in real time.",
-                color: "#f59e0b",
-              },
-              {
-                step: "03",
-                title: "Ship",
-                desc: "Copy the generated TypeScript or Python code, grab the config JSON, and deploy. You're live.",
-                color: "#a78bfa",
-              },
-            ].map((s) => (
-              <div key={s.step} className="text-center group">
-                <div
-                  className="text-4xl sm:text-5xl font-bold font-mono mb-3 transition-all duration-300 group-hover:opacity-60"
-                  style={{ color: s.color, opacity: 0.35, textShadow: `0 0 30px ${s.color}30` }}
-                >
-                  {s.step}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 sm:gap-6">
+            {STEPS.map((s) => (
+              <div key={s.step} className="group relative rounded-2xl overflow-hidden transition-all duration-500 hover:-translate-y-1 hover:shadow-xl" style={{ border: `1px solid ${s.color}20` }}>
+                {/* Background photo */}
+                <div className="absolute inset-0 bg-cover bg-center transition-all duration-700 group-hover:scale-110 group-hover:brightness-110" style={{ backgroundImage: `url(${s.img})` }} />
+                {/* Overlay */}
+                <div className="absolute inset-0" style={{ background: `linear-gradient(180deg, ${s.color}10 0%, rgba(8,12,24,0.6) 30%, rgba(8,12,24,0.75) 100%)` }} />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#080c18]/90 via-[#080c18]/40 to-transparent" />
+                {/* Top accent */}
+                <div className="absolute top-0 left-0 right-0 h-[2px] opacity-60 group-hover:opacity-100 transition-opacity" style={{ background: `linear-gradient(90deg, transparent, ${s.color}, transparent)` }} />
+
+                <div className="relative z-10 p-6 sm:p-7 text-center">
+                  <div className="text-4xl sm:text-5xl font-bold font-mono mb-3 transition-all duration-300 group-hover:opacity-70" style={{ color: s.color, opacity: 0.45, textShadow: `0 0 40px ${s.color}40` }}>
+                    {s.step}
+                  </div>
+                  <h3 className="text-lg font-bold mb-2" style={{ color: s.color, textShadow: `0 0 20px ${s.color}30` }}>
+                    {s.title}
+                  </h3>
+                  <p className="text-sm text-slate-300 font-mono leading-relaxed" style={{ textShadow: "0 2px 6px rgba(0,0,0,0.6)" }}>
+                    {s.desc}
+                  </p>
                 </div>
-                <h3 className="text-lg font-bold mb-2" style={{ color: s.color }}>
-                  {s.title}
-                </h3>
-                <p className="text-sm text-slate-400 font-mono leading-relaxed">
-                  {s.desc}
-                </p>
               </div>
             ))}
           </div>
@@ -534,9 +511,10 @@ export default function LandingPage() {
       {/* ── MCP Explanation ────────────── */}
       <div className="section-divider" />
       <section className="relative z-10 px-4 sm:px-6 py-16 sm:py-20">
-        <div className="max-w-3xl mx-auto text-center">
-          <div className="text-xs font-mono text-slate-500 mb-4 tracking-widest uppercase">
-            What is MCP?
+        <div className="absolute left-[30%] top-10 w-[500px] h-[300px] rounded-full bg-cyan-500/[0.06] blur-[120px] pointer-events-none" />
+        <div className="max-w-3xl mx-auto text-center relative">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-cyan-500/10 border border-cyan-500/20 rounded-full mb-4">
+            <span className="text-[10px] font-mono text-cyan-400 font-semibold tracking-wider uppercase">What is MCP?</span>
           </div>
           <p className="text-base sm:text-lg text-slate-200 leading-relaxed mb-6">
             The Model Context Protocol is an open standard — originally created by Anthropic,
@@ -544,7 +522,7 @@ export default function LandingPage() {
             external tools and data through a unified interface. Adopted by
             OpenAI, Google DeepMind, Microsoft, and thousands of developers.
           </p>
-          <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-[11px] font-mono text-slate-500">
+          <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-[11px] font-mono text-slate-400">
             <span>JSON-RPC 2.0</span>
             <span className="text-forge-500/40 hidden sm:inline">·</span>
             <span>stdio / HTTP / SSE</span>
@@ -557,8 +535,8 @@ export default function LandingPage() {
       {/* ── CTA ───────────────────────── */}
       <div className="section-divider" />
       <section className="relative z-10 px-4 sm:px-6 py-16 sm:py-24">
-        <div className="absolute bottom-0 left-[20%] w-[600px] h-[400px] rounded-full bg-forge-500/[0.1] blur-[120px] pointer-events-none" />
-        <div className="absolute top-10 right-[20%] w-[400px] h-[300px] rounded-full bg-blue-500/[0.06] blur-[100px] pointer-events-none" />
+        <div className="absolute bottom-0 left-[15%] w-[700px] h-[400px] rounded-full bg-forge-500/[0.12] blur-[150px] pointer-events-none" />
+        <div className="absolute top-10 right-[15%] w-[400px] h-[300px] rounded-full bg-blue-500/[0.08] blur-[120px] pointer-events-none" />
         <div className="relative max-w-2xl mx-auto text-center">
           <h2 className="text-2xl sm:text-3xl font-bold mb-4">Ready to build?</h2>
           <p className="text-slate-400 font-mono text-sm mb-8">
@@ -574,7 +552,7 @@ export default function LandingPage() {
             </Link>
             <Link
               href="/builder?tab=Builder&template=true"
-              className="px-8 py-4 bg-white/[0.04] border border-white/[0.1] hover:border-white/[0.2] hover:bg-white/[0.06] text-slate-300 font-mono text-sm rounded-lg transition-all"
+              className="px-8 py-4 bg-white/[0.06] border border-white/[0.12] hover:border-white/[0.25] hover:bg-white/[0.09] text-slate-300 font-mono text-sm rounded-lg transition-all backdrop-blur-sm"
             >
               🚀 Start with a Template
             </Link>
